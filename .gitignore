@@ -1,3 +1,15 @@
+# Logs
+*.log
+
+# Binaries
+*.bz2
+*.gz
+*.tar
+
+# Haskell
+*.hi
+*.o
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

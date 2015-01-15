@@ -1,0 +1,117 @@
+{
+    "template" : "apachelogs-*",
+    "mappings" : {
+      "_default_" : {
+        "dynamic" : "strict"
+      },
+      "apachelog" : {
+        "dynamic" : "strict",
+        "_source" : {
+          "enabled" : true
+        },
+        "_ttl" : {
+          "enabled" : true
+        },
+        "properties" : {
+          "bytes" : {
+            "type" : "long"
+          },
+          "timetaken" : {
+            "type" : "long"
+          },
+          "clientip" : {
+            "type" : "ip"
+          },
+          "ssl" : {
+            "type" : "boolean"
+          },
+          "cdsweb" : {
+            "type" : "boolean"
+          },
+          "geoip" : {
+            "dynamic" : "strict",
+            "properties" : {
+              "country_code2" : {
+                "index" : "not_analyzed",
+                "norms" : {
+                  "enabled" : false
+                },
+                "type" : "string"
+              }
+            }
+          },
+          "type" : {
+            "index" : "not_analyzed",
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string"
+          },
+          "@version" : {
+            "index" : "not_analyzed",
+            "type" : "string"
+          },
+          "agent" : {
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string",
+            "fields" : {
+              "raw" : {
+                "index" : "not_analyzed",
+                "type" : "string"
+              }
+            }
+          },
+          "response" : {
+            "index" : "not_analyzed",
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string"
+          },
+          "@timestamp" : {
+            "format" : "dateOptionalTime",
+            "type" : "date"
+          },
+          "referrer" : {
+            "index" : "not_analyzed",
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string"
+          },
+          "verb" : {
+            "index" : "not_analyzed",
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string"
+          },
+          "balancer" : {
+            "index" : "not_analyzed",
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string"
+          },
+          "request" : {
+            "norms" : {
+              "enabled" : false
+            },
+            "type" : "string",
+            "fields" : {
+              "raw" : {
+                "index" : "not_analyzed",
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "_all" : {
+          "enabled" : false
+        }
+      }
+    },
+    "aliases" : { }
+}

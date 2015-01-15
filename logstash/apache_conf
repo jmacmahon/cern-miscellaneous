@@ -1,0 +1,11 @@
+*80*
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" %D" combined_with_timing
+CustomLog /opt/log/apache/cds/apache.log combined_with_timing
+ErrorLog /opt/log/apache/cds/apache.err
+LogLevel warn
+
+*443*
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\" %D" combined_with_timing
+CustomLog /opt/log/apache/cds/apache-ssl.log combined_with_timing
+ErrorLog /opt/log/apache/cds/apache-ssl.err
+LogLevel warn
