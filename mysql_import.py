@@ -1,86 +1,23 @@
 import mysql.connector as mysql
-from datetime import datetime
-from time import sleep, mktime
+from time import mktime
 from json import dumps
 from itertools import izip, count, imap
-
-from elasticsearch import Elasticsearch, ConnectionError
-from elasticsearch.helpers import streaming_bulk, bulk, BulkIndexError
-
-import logging
-import sys
-logging.getLogger('elasticsearch').addHandler(logging.StreamHandler(
-    stream = sys.stderr
-))
-
-es = Elasticsearch(
-    hosts = [{
-        "host": "localhost",
-        "port": 9197
-    }]
-)
+from contextlib import contextmanager
 
 INVENIO_PREFIX = "cds-"
-CHUNK_SIZE = 500
-LAST_CHUNK = None
-FAILED_CHUNKS = []
 
-def fetch_and_index(conn, time_from, time_to):
-    global LAST_CHUNK, FAILED_CHUNKS
-    failed_chunks = []
+@contextmanager
+def mysql_connection(*args, **kwargs):
+    connection = mysql.connect(*args, **kwargs)
+    yield connection
+    connection.close()
 
-    downloads_errors = []
-    print('Running downloads query.')
-    downloads_iterator = run_downloads_query(conn, time_from, time_to)
-    finished = False
-    while not finished:
-        print('Starting bulk index...')
-        try:
-            dls_result = bulk(es, downloads_iterator, raise_on_error=True)
-        except BulkIndexError as e:
-            downloads_errors.append(e)
-        except ConnectionError as e:
-            downloads_errors.append(e)
-            FAILED_CHUNKS.append(LAST_CHUNK)
-            LAST_CHUNK = []
-            print('Failed. Sleeping for 60s...')
-            sleep(60)
-        else:
-            finished = True
+local_mysql = lambda: mysql_connection(
+    user='root', password='password', host='127.0.0.1',
+    database='cdsweb_before_2014_12_08_elasticsearch')
 
-    pageviews_errors = []
-    print('Running pageviews query.')
-    pageviews_iterator = run_pageviews_query(conn, time_from, time_to)
-    print('Starting bulk index...')
-    
-    finished = False
-    while not finished:
-        print('Starting bulk index...')
-        try:
-            pvs_result = bulk(es, downloads_iterator, raise_on_error=True)
-        except BulkIndexError as e:
-            pageviews_errors.append(e)
-        except ConnectionError as e:
-            pageviews_errors.append(e)
-            FAILED_CHUNKS.append(LAST_CHUNK)
-            LAST_CHUNK = []
-            print('Failed. Sleeping for 60s...')
-            sleep(60)
-        else:
-            finished = True
-
-    return ((downloads_errors, dls_result), (pageviews_errors, pvs_result))
-    
-    
-def with_myql(f, *args, **kwargs):
-    connection = mysql.connect(user = 'root', password = 'password',
-        host = '127.0.0.1', database = 'cdsweb_before_2014_12_08_elasticsearch')
-    try:
-        ret = f(connection, *args, **kwargs)
-    except Exception as e:
-        connection.close()
-        raise e
-    return (ret, connection)
+def len_iter(iter_):
+    return sum(1 for _ in iter_)
 
 def dump_remainder(connection, time_from, time_to, modulus=1000000):
     downloads_json = imap(dump_action, run_downloads_query(connection, time_from, time_to))
@@ -88,6 +25,7 @@ def dump_remainder(connection, time_from, time_to, modulus=1000000):
     for (n, action) in izip(count(0), downloads_json):
         if n % modulus == 0:
             downloads_buffer = []
+            print('Reset at n = %d.' % n)
         downloads_buffer.append(action)
     with open('/home/joe/elasticsearch/downloads_remainder.json', 'w') as f:
         f.writelines(downloads_buffer)
@@ -97,6 +35,7 @@ def dump_remainder(connection, time_from, time_to, modulus=1000000):
     for (n, action) in izip(count(0), pageviews_json):
         if n % modulus == 0:
             pageviews_buffer = []
+            print('Reset at n = %d.', n)
         pageviews_buffer.append(action)
     with open('/home/joe/elasticsearch/pageviews_remainder.json', 'w') as f:
         f.writelines(pageviews_buffer)
@@ -127,7 +66,6 @@ def run_pageviews_query(conn, time_from, time_to):
     cursor.execute(query, (time_from, time_to))
 
     def pageviews(cursor):
-        global LAST_CHUNK
         ii = 0
         for row in cursor:
             doc = build_doc_from_pageview_row(row)
@@ -142,14 +80,10 @@ def run_pageviews_query(conn, time_from, time_to):
             del doc['type']
             action['_source'] = doc
 
-            if ii % CHUNK_SIZE == 0:
-                LAST_CHUNK = []
-
             ii += 1
             if ii % 10000 == 0:
                 print('Pageviews row: %4d0k.' % (ii / 10000))
 
-            LAST_CHUNK.append(action)
             yield action
 
     return pageviews(cursor)
@@ -161,7 +95,6 @@ def run_downloads_query(conn, time_from, time_to):
     cursor.execute(query, (time_from, time_to))
 
     def downloads(cursor):
-        global LAST_CHUNK
         ii = 0
         for row in cursor:
             doc = build_doc_from_download_row(row)
@@ -176,14 +109,10 @@ def run_downloads_query(conn, time_from, time_to):
             del doc['type']
             action['_source'] = doc
 
-            if ii % CHUNK_SIZE == 0:
-                LAST_CHUNK = []
-
             ii += 1
             if ii % 10000 == 0:
                 print('Downloads row: %4d0k.' % (ii / 10000))
 
-            LAST_CHUNK.append(action)
             yield action
                 
     return downloads(cursor)
@@ -220,14 +149,6 @@ def build_doc_from_download_row(row):
     except TypeError:
         pass
     return doc
-
-def create_new_index(suffix):
-    index_name = INVENIO_PREFIX + suffix
-    if not es.indices.exists(index = [index_name]):
-        es.indices.create(
-            index = index_name,
-            #body = INVENIO_INDEX_META
-        )
 
 def ipv4_from_int(the_int):
     if not (the_int & 0x00000000) == 0:
