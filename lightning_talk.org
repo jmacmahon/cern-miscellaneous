@@ -1,0 +1,87 @@
+* Things it would be hard to do with unix tools but easy with ELK
+** Most common status codes
+pv -Webrapt -l apache.log | sed -r 's/^.* "[A-Z]+ .* HTTP\/1\.." (...).*$/\1/' | sort | uniq -c | sort -n
+
+** Most common URLs
+pv -Webrapt -l apache.log | sed -r 's/^.* "[A-Z]+ (.*) HTTP\/1\..".*$/\1/' | sort | uniq -c | sort -n | tail -n 50
+
+** Number and %age of requests from FR/CH?
+head -n 50000 apache.log | pv -Webrapt -l -s 50000 | sed -r 's/^(([0-9]+\.){3}[0-9]+) .*$/\1/' | xargs -n 1 geoiplookup | sed -r 's/^.*: (..), .*$/\1/' | sort | uniq -c | sort -n
+
+** Number of 403s from Googlebot
+grep -i 'googlebot' apache.log | sed -r 's/^.* "[A-Z]+ .* HTTP\/1\.." (...).*$/\1/' | sort | uniq -c | sort -n
+
+* Script
+** Act 1
+N Hey Joe can you tell me how many times this URL has been accessed in the last month?
+
+J ... X
+
+N and how many of these times were from the UK?
+
+J ... Y
+
+N and what about excluding the Googlebot?
+
+J [despair]
+
+N [To Joe] Don't you wish there was an easier way to do this?
+
+N [To audience] Are you tired of using grep and sed to process your logs?  Are
+  you tired of loading 5GB files in vi?
+
+J [Interrupting] Umm, actually Emacs is a lot faster!
+
+N Are your logs working for you, or are you working for your logs?
+
+** Act 2
+J [Opens Kibana]
+
+N Today's the day to take the power back!
+  So, Joe, how about those numbers then?
+
+J [Highlighting figures] So the number of hits for that URL in February was
+  about 90, from the US we had about 21, and then excluding redirects we
+  got 17.  Look, here's a graph!
+
+N Wow!  That looks good.
+  [To self] But hold on, wait a second, how did we get from those logs to these
+  graphs?
+
+J [Puts on lab coat]
+
+N [To audience] Let me introduce you to our expert, Mr. MacMahon
+
+N [To J] So Joseph, why don't you walk us through it?
+
+** Act 3
+J [With presentation] Well Nikos, at the heart of all this is Elasticsearch --
+  a high performance, distributed search engine, optimised for storing log
+  data.  We take the lines coming into our Apache logs using another piece of
+  software called Logstash, store them in Elasticsearch, and then use this web
+  interface, called Kibana, to visualise and analyse our data.
+
+N It must have taken some work to set all that up!
+
+J Well actually, you won't believe how easy it is!  I'll tell you how we did it
+  here for CDS.  We have a ten-machine Elasticsearch cluster, with 1TB of
+  storage on each node --
+
+N [interrupting] That's 10TB!
+
+J Yes, according to our calculations this will last us for 50 years of log
+  data, and that's with replication!  We use Openstack and Puppet to painlessly
+  deploy and configure all the hardware and software for the cluster.
+
+* Notes
+Next 3 questions should be
+
+- kopf/plugins/indices
+- logs, bots, geoip, json, http
+- nginx, security, balancing
+- lifecycle/workflow
+
+Next segments:
+
+- Testimonials
+- Closing
