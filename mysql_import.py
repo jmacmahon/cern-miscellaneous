@@ -26,7 +26,7 @@ def dump_remainder(connection, time_from, time_to, modulus=1000000):
         if n % modulus == 0:
             downloads_buffer = []
             print('Reset at n = %d.' % n)
-        downloads_buffer.append(action)
+        downloads_buffer.append(action + '\n')
     with open('/home/joe/elasticsearch/downloads_remainder.json', 'w') as f:
         f.writelines(downloads_buffer)
 
@@ -36,7 +36,7 @@ def dump_remainder(connection, time_from, time_to, modulus=1000000):
         if n % modulus == 0:
             pageviews_buffer = []
             print('Reset at n = %d.', n)
-        pageviews_buffer.append(action)
+        pageviews_buffer.append(action + '\n')
     with open('/home/joe/elasticsearch/pageviews_remainder.json', 'w') as f:
         f.writelines(pageviews_buffer)
 
@@ -69,17 +69,7 @@ def run_pageviews_query(conn, time_from, time_to):
         ii = 0
         for row in cursor:
             doc = build_doc_from_pageview_row(row)
-            index_suffix = doc['@timestamp'].strftime('%Y')
-            if index_suffix == "2014":
-                index_suffix = "olddata-2014"
-            action = {
-                "_op_type": "index",
-                "_index": INVENIO_PREFIX + index_suffix,
-                "_type": doc['type']
-            }
-            del doc['type']
-            action['_source'] = doc
-
+            action = build_action_from_doc(doc)
             ii += 1
             if ii % 10000 == 0:
                 print('Pageviews row: %4d0k.' % (ii / 10000))
@@ -98,17 +88,7 @@ def run_downloads_query(conn, time_from, time_to):
         ii = 0
         for row in cursor:
             doc = build_doc_from_download_row(row)
-            index_suffix = doc['@timestamp'].strftime('%Y')
-            if index_suffix == "2014":
-                index_suffix = "olddata-2014"
-            action = {
-                "_op_type": "index",
-                "_index": INVENIO_PREFIX + index_suffix,
-                "_type": doc['type'],
-            }
-            del doc['type']
-            action['_source'] = doc
-
+            action = build_action_from_doc(doc)
             ii += 1
             if ii % 10000 == 0:
                 print('Downloads row: %4d0k.' % (ii / 10000))
@@ -116,6 +96,21 @@ def run_downloads_query(conn, time_from, time_to):
             yield action
                 
     return downloads(cursor)
+
+def build_action_from_doc(doc, file_=None):
+    index_suffix = doc['@timestamp'].strftime('%Y')
+    if index_suffix == "2014":
+        index_suffix = "olddata-2014"
+    action = {
+        "_op_type": "index",
+        "_index": INVENIO_PREFIX + index_suffix,
+        "_type": doc['type'],
+    }
+    del doc['type']
+    action['_source'] = doc
+    if file_ is not None:
+        action['_source']['file'] = file_
+    return action
 
 def build_doc_from_pageview_row(row):
     doc = {

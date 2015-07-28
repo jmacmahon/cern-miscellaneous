@@ -1,5 +1,4 @@
-curl 'localhost:9197/cds-*/events.journals/_search?search_type=count&pretty' -d '                                                                                                                                                                                          
-{
+curl -k -XPOST -u slueders 'https://cds-statistics-11:444/cds-*/events.journals/_search?search_type=count&pretty' -d '{
     "query": {
         "match": {
             "articleid": 2030047
@@ -23,5 +22,4 @@ curl 'localhost:9197/cds-*/events.journals/_search?search_type=count&pretty' -d 
             }
         }
     }
-}
-'
+}'

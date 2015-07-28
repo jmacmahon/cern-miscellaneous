@@ -1,8 +1,8 @@
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-es_orig = Elasticsearch([{'host': 'localhost', 'port': 9199}])
-es_new = Elasticsearch([{'host': 'localhost', 'port': 9198}])
+es_orig = Elasticsearch([{'host': 'localhost', 'port': 9197}])
+es_new = Elasticsearch([{'host': 'localhost', 'port': 9197}])
 
 def scroll(index, new_index, size=1000):
     _id = es_orig.search(index=index,

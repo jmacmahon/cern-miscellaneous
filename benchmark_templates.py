@@ -51,20 +51,24 @@ TEMPLATES = [{'mappings': {'events.downloads': {'properties': {'level': {'type':
     '_all': {'enabled': False}}},
   'template': 'cds-*'}]
 
-def burst(es, delay=None, number=None, templates=None):
-    if delay is None:
-        delay = 0.2 + random() * 1.8
+def burst(es, number=None, templates=None):
     if number is None:
         number = randint(1, 3)
     if templates is None:
         templates = TEMPLATES
-    LOGGER.getChild('burst').info('Delay: %.1f, number: %d.', delay, number)
+    LOGGER.getChild('burst').info('Bursting number: %d.', number)
+    template = choice(templates)
     for _ in xrange(number):
-        es.indices.put_template(name='test-template-*', body=choice(templates))
-        sleep(delay)
+        es.indices.put_template(name='test-template-*', body=template)
+    for _ in xrange(number):
+        for (doc_type, mapping) in template['mappings'].items():
+            es.indices.put_mapping(index=template['template'],
+                                   doc_type=doc_type,
+                                   body=mapping,
+                                   allow_no_indices=True)
 
-def multiple_bursts(es, count, delay=None, delay_fuzz=None, burst_args=None,
-                    burst_kwargs=None):
+def run_bursts(es, count, delay=None, delay_fuzz=None, burst_args=None,
+               burst_kwargs=None):
     if delay is None:
         delay = DELAY
     if delay_fuzz is None:
