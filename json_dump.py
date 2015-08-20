@@ -5,7 +5,7 @@ from time import time
 
 es = Elasticsearch([{'host': 'localhost', 'port': 9197}])
 
-def count_every(iterable, n=10000):
+def count_every(iterable, n=10000, total=None):
     ii = 0
     start_t = t = time()
     for elem in iterable:
@@ -18,29 +18,42 @@ def count_every(iterable, n=10000):
             t = new_t
             print('Done %d in %.1fs (average: %.1f/s, block: %.1f/s)' %
                   (ii, dt_total, ditems_dt_avg, ditems_dt_block))
+
+            if total is not None:
+                percentage = 100 * float(ii)/total
+                try:
+                    eta = (total - ii)/ditems_dt_avg
+                except ZeroDivisionError:
+                    eta = 0
+                print('Completion: %.1f%%; ETA: %.0fs' % (percentage, eta))
         ii += 1
         yield elem
 
-def scroll(index, size=10000, **kwargs):
+def scroll(es, index, size=10000, **kwargs):
     initial_query_raw = es.search(index=index,
                                   scroll='1m',
                                   size=size,
                                   **kwargs)
     _id = initial_query_raw['_scroll_id']
 
-    finished = False
-
     def process_result(res):
-        action = {
-            '_op_type': 'index',
-            '_index': res['_index'],
-            '_type': res['_type'],
-            '_source': res['_source']
-        }
+        try:
+            action = {
+                '_op_type': 'index',
+                '_index': res['_index'],
+                '_type': res['_type'],
+                '_source': res['_source'],
+                '_id': res['_id']
+            }
+        except KeyError:
+            print(repr(res))
+            raise
         return action
 
     for res in initial_query_raw['hits']['hits']:
         yield process_result(res)
+
+    finished = False
     while not finished:
         results = es.scroll(scroll_id=_id,
                             scroll='1m')['hits']['hits']

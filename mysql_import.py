@@ -14,7 +14,7 @@ def mysql_connection(*args, **kwargs):
 
 local_mysql = lambda: mysql_connection(
     user='root', password='password', host='127.0.0.1',
-    database='cdsweb_before_2014_12_08_elasticsearch')
+    database='cdsweb_custom_events')
 
 def len_iter(iter_):
     return sum(1 for _ in iter_)
@@ -94,7 +94,7 @@ def run_downloads_query(conn, time_from, time_to):
                 print('Downloads row: %4d0k.' % (ii / 10000))
 
             yield action
-                
+
     return downloads(cursor)
 
 def build_action_from_doc(doc, file_=None):
@@ -126,7 +126,7 @@ def build_doc_from_pageview_row(row):
     except TypeError:
         pass
     return doc
-        
+
 def build_doc_from_download_row(row):
     doc = {
         "id_bibrec": row[0],

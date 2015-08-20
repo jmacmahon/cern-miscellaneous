@@ -1,38 +1,40 @@
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
+from itertools import imap
+from geoip import geolite2
+
+from json_dump import count_every, scroll
 
 es_orig = Elasticsearch([{'host': 'localhost', 'port': 9197}])
 es_new = Elasticsearch([{'host': 'localhost', 'port': 9197}])
 
-def scroll(index, new_index, size=1000):
-    _id = es_orig.search(index=index,
-                        scroll='1m',
-                        size=size)['_scroll_id']
-    finished = False
+def process_and_bulk(scroll_gen, processor=None):
+    if processor is None:
+        processor = lambda x: x
+    processed = imap(processor, scroll_gen)
 
-    def process_result(res):
-        if new_index is not None:
-            this_new_index = new_index
-        else:
-            this_new_index = res['_index']
-        action = {
-            '_op_type': 'index',
-            '_index': this_new_index,
-            '_type': res['_type'],
-            '_source': res['_source']
-        }
+    bulk(es_new, processed)
+
+def test_processor(action):
+    action['_source']['test'] = 1
+    return action
+def undo_test_processor(action):
+    if 'test' in action['_source']:
+        del action['_source']['test']
+    return action
+
+def geoip_processor(field):
+    def _inner(action):
+        ip_data = geolite2.lookup(action['_source'][field])
+        if ip_data is not None:
+            if 'geoip' not in action['_source']:
+                action['_source']['geoip'] = {}
+            if ip_data.country is not None:
+                action['_source']['geoip']['country_code2'] = ip_data.country
+            if ip_data.location is not None:
+                action['_source']['geoip']['location'] = {
+                    'lat': ip_data.location[0],
+                    'lon': ip_data.location[1]
+                }
         return action
-        
-    while not finished:
-        results = es_orig.scroll(scroll_id=_id,
-                                scroll='1m')['hits']['hits']
-        hits = map(process_result, results)
-        finished = len(hits) == 0
-        yield hits
-
-def bulkbulk(scroll_gen):
-    i = 0
-    for hits in scroll_gen:
-        bulk(es_new, hits)
-        i += len(hits)
-        print("Done %4d." % i)
+    return _inner
